@@ -210,8 +210,8 @@ RT_ERROR_CHECKING = /RTCsu
 # Assorted commands and flags
 # ----------------------------
 
-CC_CMD_REL = cl.exe /nologo $(RTLIB) /DNDEBUG /O2
-CC_CMD_DBG = cl.exe /nologo $(RTLIBD) /D_DEBUG /Od /Zi $(RT_ERROR_CHECKING)
+CC_CMD_REL = cl.exe /nologo $(RTLIB) /DNDEBUG /O2 /Z7
+CC_CMD_DBG = cl.exe /nologo $(RTLIBD) /D_DEBUG /Od /Z7 $(RT_ERROR_CHECKING)
 CC_CFLAGS  = $(CFLAGS) /I.\src\lib /I.\include /W3 /EHsc /FD
 
 RC_CMD_REL = rc.exe /l 0x409 /d "NDEBUG"
