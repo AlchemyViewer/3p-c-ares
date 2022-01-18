@@ -60,14 +60,6 @@ pushd "$CARES_SOURCE_DIR"
         ;;
     
         darwin*)
-            # Force libz and openssl static linkage by moving .dylibs out of the way
-            trap restore_dylibs EXIT
-            for dylib in "$stage"/packages/lib/release/lib{z,crypto,ssl}*.dylib; do
-                if [ -f "$dylib" ]; then
-                    mv "$dylib" "$dylib".disable
-                fi
-            done
-
             # Setup osx sdk platform
             SDKNAME="macosx"
             export SDKROOT=$(xcodebuild -version -sdk ${SDKNAME} Path)
@@ -86,10 +78,6 @@ pushd "$CARES_SOURCE_DIR"
             RELEASE_CPPFLAGS="-DPIC"
             DEBUG_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
             RELEASE_LDFLAGS="$ARCH_FLAGS $SDK_FLAGS -Wl,-headerpad_max_install_names"
-
-            mkdir -p "$stage/include/curl"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
 
             mkdir -p "build_debug"
             pushd "build_debug"
@@ -112,43 +100,20 @@ pushd "$CARES_SOURCE_DIR"
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                     -DCMAKE_OSX_SYSROOT=${SDKROOT} \
-                    -DCMAKE_MACOSX_RPATH=YES -DCMAKE_INSTALL_PREFIX=$stage \
-                    -DENABLE_THREADED_RESOLVER:BOOL=ON \
-                    -DCURL_USE_OPENSSL:BOOL=TRUE \
-                    -DZLIB_LIBRARIES="${stage}/packages/lib/debug/libz.a" \
-                    -DZLIB_INCLUDE_DIRS="${stage}/packages/include/zlib" \
-                    -DNGHTTP2_LIBRARIES="${stage}/packages/lib/debug/libnghttp2.a" \
-                    -DNGHTTP2_INCLUDE_DIRS="${stage}/packages/include/nghttp2" \
-                    -DOPENSSL_LIBRARIES="${stage}/packages/lib/debug/libcrypto.a;${stage}/packages/lib/debug/libssl.a" \
-                    -DOPENSSL_INCLUDE_DIR="${stage}/packages/include/"
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage" \
+                    -DCMAKE_INSTALL_LIBDIR="$stage/lib/debug" \
+                    -DCARES_SHARED=OFF \
+                    -DCARES_STATIC=ON \
+                    -DCARES_STATIC_PIC=ON
 
                 cmake --build . --config Debug
-                
-                mkdir -p "${stage}/install_debug"
-                cmake --install . --config Debug --prefix "${stage}/install_debug"
+                cmake --install . --config Debug
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Debug
-                fi
-
-                # Run 'curl' as a sanity check. Capture just the first line, which
-                # should have versions of stuff.
-                curlout="$("${stage}"/install_debug/bin/curl --version | tr -d '\r' | head -n 1)"
-                # With -e in effect, any nonzero rc blows up the script --
-                # so plain 'expr str : pattern' asserts that str contains pattern.
-                # curl version - should be start of line
-                expr "$curlout" : "curl $(escape_dots "$version")" > /dev/null
-                # libcurl/version
-                expr "$curlout" : ".* libcurl/$(escape_dots "$version")" > /dev/null
-                # OpenSSL/version
-                expr "$curlout" : ".* OpenSSL/$(escape_dots "$(get_installable_version openssl 3)")" > /dev/null
-                # zlib/version
-                expr "$curlout" : ".* zlib/1.2.11.zlib-ng" > /dev/null
-                # nghttp2/versionx
-                expr "$curlout" : ".* nghttp2/$(escape_dots "$(get_installable_version nghttp2 3)")" > /dev/null
-
-                cp -a ${stage}/install_debug/lib/libcurld.a "${stage}/lib/debug/libcurl.a"
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Debug
+                #fi
             popd
 
             mkdir -p "build_release"
@@ -172,49 +137,22 @@ pushd "$CARES_SOURCE_DIR"
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                     -DCMAKE_OSX_SYSROOT=${SDKROOT} \
-                    -DCMAKE_MACOSX_RPATH=YES -DCMAKE_INSTALL_PREFIX=$stage \
-                    -DENABLE_THREADED_RESOLVER:BOOL=ON \
-                    -DCURL_USE_OPENSSL:BOOL=TRUE \
-                    -DZLIB_LIBRARIES="${stage}/packages/lib/release/libz.a" \
-                    -DZLIB_INCLUDE_DIRS="${stage}/packages/include/zlib" \
-                    -DNGHTTP2_LIBRARIES="${stage}/packages/lib/release/libnghttp2.a" \
-                    -DNGHTTP2_INCLUDE_DIRS="${stage}/packages/include/nghttp2" \
-                    -DOPENSSL_LIBRARIES="${stage}/packages/lib/release/libcrypto.a;${stage}/packages/lib/release/libssl.a" \
-                    -DOPENSSL_INCLUDE_DIR="${stage}/packages/include/"
+                    -DCMAKE_MACOSX_RPATH=YES \
+                    -DCMAKE_INSTALL_PREFIX="$stage" \
+                    -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
+                    -DCARES_SHARED=OFF \
+                    -DCARES_STATIC=ON \
+                    -DCARES_STATIC_PIC=ON
 
                 cmake --build . --config Release
-
-                mkdir -p "${stage}/install_debug"
-                cmake --install . --config Release --prefix "${stage}/install_release"
+                cmake --install . --config Release
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Release
-                fi
-
-                # Run 'curl' as a sanity check. Capture just the first line, which
-                # should have versions of stuff.
-                curlout="$("${stage}"/install_release/bin/curl --version | tr -d '\r' | head -n 1)"
-                # With -e in effect, any nonzero rc blows up the script --
-                # so plain 'expr str : pattern' asserts that str contains pattern.
-                # curl version - should be start of line
-                expr "$curlout" : "curl $(escape_dots "$version")" > /dev/null
-                # libcurl/version
-                expr "$curlout" : ".* libcurl/$(escape_dots "$version")" > /dev/null
-                # OpenSSL/version
-                expr "$curlout" : ".* OpenSSL/$(escape_dots "$(get_installable_version openssl 3)")" > /dev/null
-                # zlib/version
-                expr "$curlout" : ".* zlib/1.2.11.zlib-ng" > /dev/null
-                # nghttp2/versionx
-                expr "$curlout" : ".* nghttp2/$(escape_dots "$(get_installable_version nghttp2 3)")" > /dev/null
-
-                cp -a ${stage}/install_release/lib/libcurl.a "${stage}/lib/release/libcurl.a"
-
-                cp -a ${stage}/install_release/include/curl/* "$stage/include/curl"
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Release
+                #fi
             popd
-            #cp "$NGHTTP2_VERSION_HEADER_DIR"/*.h "$stage/include/nghttp2/"
         ;;
-    
         linux*)
             # Linux build environment at Linden comes pre-polluted with stuff that can
             # seriously damage 3rd-party builds.  Environmental garbage you can expect
