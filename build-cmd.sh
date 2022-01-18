@@ -253,7 +253,6 @@ pushd "$CARES_SOURCE_DIR"
                         -DCMAKE_CXX_FLAGS="$DEBUG_CXXFLAGS" \
                         -DCMAKE_INSTALL_PREFIX="$stage" \
                         -DCMAKE_INSTALL_LIBDIR="$stage/lib/debug" \
-                        -DCARES_BUILD_TESTS=ON \
                         -DCARES_SHARED=OFF \
                         -DCARES_STATIC=ON \
                         -DCARES_STATIC_PIC=ON
@@ -262,9 +261,9 @@ pushd "$CARES_SOURCE_DIR"
                 cmake --install . --config Debug
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Debug
-                fi
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Debug
+                #fi
             popd
 
             # Release
@@ -279,7 +278,6 @@ pushd "$CARES_SOURCE_DIR"
                         -DCMAKE_CXX_FLAGS="$RELEASE_CXXFLAGS" \
                         -DCMAKE_INSTALL_PREFIX="$stage" \
                         -DCMAKE_INSTALL_LIBDIR="$stage/lib/release" \
-                        -DCARES_BUILD_TESTS=ON \
                         -DCARES_SHARED=OFF \
                         -DCARES_STATIC=ON \
                         -DCARES_STATIC_PIC=ON
@@ -288,9 +286,9 @@ pushd "$CARES_SOURCE_DIR"
                 cmake --install . --config Release
 
                 # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    ctest -C Release
-                fi
+                #if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                #    ctest -C Release
+                #fi
             popd
         ;;
     esac
